@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>게임 테스트</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #game-canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #debug-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        button {
+            background-color: #ff3030;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background-color: #ff5050;
+        }
+        
+        #log {
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        <div id="debug-panel">
+            <h2>게임 진단 도구</h2>
+            <div>
+                <button id="test-pixi">PIXI.js 테스트</button>
+                <button id="test-track">트랙 테스트</button>
+                <button id="test-car">차량 테스트</button>
+                <button id="test-game">게임 테스트</button>
+            </div>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <!-- 라이브러리 -->
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.2.4/dist/pixi.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/gsap.min.js"></script>
+    
+    <!-- 디버그 스크립트 -->
+    <script>
+        // 로그 함수
+        function log(message, isError = false) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.style.color = isError ? '#ff5555' : '#aaffaa';
+            entry.textContent = `[${timestamp}] ${message}`;
+            logElement.appendChild(entry);
+            logElement.scrollTop = logElement.scrollHeight;
+            console[isError ? 'error' : 'log'](message);
+        }
+        
+        // PIXI.js 테스트
+        document.getElementById('test-pixi').addEventListener('click', async () => {
+            try {
+                log('PIXI.js 테스트 시작...');
+                
+                if (typeof PIXI === 'undefined') {
+                    throw new Error('PIXI.js가 로드되지 않았습니다.');
+                }
+                
+                log(`PIXI.js 버전: ${PIXI.VERSION}`);
+                
+                const canvas = document.getElementById('game-canvas');
+                const app = new PIXI.Application({
+                    width: window.innerWidth,
+                    height: window.innerHeight,
+                    backgroundColor: 0x333333,
+                    view: canvas
+                });
+                
+                log('PIXI 애플리케이션 생성 성공');
+                
+                // 간단한 그래픽 그리기
+                const graphics = new PIXI.Graphics();
+                graphics.beginFill(0xff3030);
+                graphics.drawRect(100, 100, 100, 100);
+                graphics.endFill();
+                app.stage.addChild(graphics);
+                
+                log('PIXI.js 테스트 완료: 성공');
+            } catch (error) {
+                log(`PIXI.js 테스트 실패: ${error.message}`, true);
+            }
+        });
+        
+        // 트랙 테스트
+        document.getElementById('test-track').addEventListener('click', async () => {
+            try {
+                log('트랙 테스트 시작...');
+                
+                // 필요한 스크립트 로드
+                await loadScript('./js/utils.js');
+                await loadScript('./js/physics.js');
+                await loadScript('./js/track.js');
+                
+                log('트랙 관련 스크립트 로드 완료');
+                
+                if (typeof Track !== 'function') {
+                    throw new Error('Track 클래스를 찾을 수 없습니다.');
+                }
+                
+                const canvas = document.getElementById('game-canvas');
+                const app = new PIXI.Application({
+                    width: window.innerWidth,
+                    height: window.innerHeight,
+                    backgroundColor: 0x000000,
+                    view: canvas
+                });
+                
+                const track = new Track(app);
+                app.stage.addChild(track.container);
+                track.drawTrack();
+                
+                log('트랙 생성 및 그리기 성공');
+                log('트랙 테스트 완료: 성공');
+            } catch (error) {
+                log(`트랙 테스트 실패: ${error.message}`, true);
+            }
+        });
+        
+        // 차량 테스트
+        document.getElementById('test-car').addEventListener('click', async () => {
+            try {
+                log('차량 테스트 시작...');
+                
+                // 필요한 스크립트 로드
+                await loadScript('./js/utils.js');
+                await loadScript('./js/physics.js');
+                await loadScript('./js/track.js');
+                await loadScript('./js/car.js');
+                
+                log('차량 관련 스크립트 로드 완료');
+                
+                if (typeof Car !== 'function') {
+                    throw new Error('Car 클래스를 찾을 수 없습니다.');
+                }
+                
+                const canvas = document.getElementById('game-canvas');
+                const app = new PIXI.Application({
+                    width: window.innerWidth,
+                    height: window.innerHeight,
+                    backgroundColor: 0x000000,
+                    view: canvas
+                });
+                
+                const track = new Track(app);
+                app.stage.addChild(track.container);
+                track.drawTrack();
+                
+                const car = new Car(app, track);
+                log('차량 생성 성공');
+                
+                // 간단한 애니메이션
+                app.ticker.add(() => {
+                    car.update(1/60, { up: true });
+                });
+                
+                log('차량 테스트 완료: 성공');
+            } catch (error) {
+                log(`차량 테스트 실패: ${error.message}`, true);
+            }
+        });
+        
+        // 게임 테스트
+        document.getElementById('test-game').addEventListener('click', async () => {
+            try {
+                log('게임 테스트 시작...');
+                
+                // 모든 스크립트 로드
+                await loadScript('./js/utils.js');
+                await loadScript('./js/physics.js');
+                await loadScript('./js/track.js');
+                await loadScript('./js/car.js');
+                await loadScript('./js/ai.js');
+                await loadScript('./js/audio.js');
+                await loadScript('./js/ghost.js');
+                await loadScript('./js/effects.js');
+                await loadScript('./js/keyboard.js');
+                await loadScript('./js/ui.js');
+                
+                log('게임 관련 스크립트 로드 완료');
+                
+                // 필수 클래스 확인
+                const requiredClasses = ['Physics', 'Track', 'Car', 'Effects', 'GameUI', 'KeyboardController'];
+                for (const className of requiredClasses) {
+                    if (typeof window[className] !== 'function') {
+                        throw new Error(`${className} 클래스를 찾을 수 없습니다.`);
+                    }
+                }
+                
+                log('필수 클래스 확인 완료');
+                
+                // 게임 스크립트 로드 및 초기화
+                await loadScript('./js/game.js');
+                
+                if (typeof Game !== 'function') {
+                    throw new Error('Game 클래스를 찾을 수 없습니다.');
+                }
+                
+                log('게임 클래스 로드 완료, 게임 초기화 시도...');
+                
+                // 게임 초기화
+                window.game = new Game();
+                
+                log('게임 초기화 성공');
+                log('게임 테스트 완료: 성공');
+            } catch (error) {
+                log(`게임 테스트 실패: ${error.message}`, true);
+            }
+        });
+        
+        // 스크립트 로딩 함수
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                // 이미 로드된 스크립트인지 확인
+                const existingScript = document.querySelector(`script[src="${src}"]`);
+                if (existingScript) {
+                    resolve();
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = () => {
+                    log(`스크립트 로드 완료: ${src}`);
+                    resolve();
+                };
+                script.onerror = () => {
+                    log(`스크립트 로드 실패: ${src}`, true);
+                    reject(new Error(`Failed to load ${src}`));
+                };
+                document.body.appendChild(script);
+            });
+        }
+        
+        // 페이지 로드 시 초기화
+        window.addEventListener('load', () => {
+            log('진단 도구 초기화 완료');
+            log('테스트 버튼을 클릭하여 각 구성 요소를 테스트하세요.');
+        });
+    </script>
+</body>
+</html>

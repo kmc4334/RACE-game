@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LETHAL RACE</title>
+    <link rel="stylesheet" href="./styles/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 기본 스타일 */
+        html,
+        body {
+            background-color: #000000;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #game-container {
+            background-color: #000000;
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* 로딩 화면 스타일 */
+        #loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        #loading-bar-container {
+            width: 200px;
+            height: 20px;
+            background-color: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        #loading-bar {
+            width: 0%;
+            height: 100%;
+            background-color: #ff3030;
+            transition: width 0.3s;
+        }
+
+        #loading-text {
+            color: #fff;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        /* 오류 메시지 스타일 */
+        #error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 1000;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 로딩 화면 -->
+    <div id="loading-screen">
+        <h1 style="color: #ff3030; font-size: 32px; margin-bottom: 20px;">LETHAL RACE</h1>
+        <div id="loading-bar-container">
+            <div id="loading-bar"></div>
+        </div>
+        <p id="loading-text">게임 로딩 중...</p>
+    </div>
+
+    <!-- 오류 메시지 -->
+    <div id="error-message"></div>
+
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        <div id="ui-overlay">
+            <div id="speedometer">
+                <div class="speed-value">0</div>
+                <div class="speed-unit">KM/H</div>
+            </div>
+            <div id="lap-info">
+                <div class="current-lap">랩: 1/3</div>
+                <div class="lap-time">시간: 00:00.000</div>
+                <div class="best-lap">최고기록: --:--:---</div>
+            </div>
+            <div id="ghost-info" class="hidden">고스트 모드: 켜짐</div>
+        </div>
+
+        <!-- 시작 화면 -->
+        <div id="start-screen">
+            <div id="sound-controls">
+                <button class="sound-button" id="music-toggle"><i class="fas fa-music"></i></button>
+                <button class="sound-button" id="sound-toggle"><i class="fas fa-volume-up"></i></button>
+            </div>
+
+            <div id="game-title">
+                <h1><span>LETHAL</span>RACE</h1>
+            </div>
+
+            <div id="car-image">
+                <div class="car-body"></div>
+                <div class="car-window"></div>
+                <div class="car-wheel front-wheel"></div>
+                <div class="car-wheel back-wheel"></div>
+                <div class="car-light"></div>
+            </div>
+
+            <div id="menu-buttons">
+                <button class="menu-button" id="play-button" onclick="startGame()">PLAY</button>
+                <button class="menu-button" id="ghost-mode-button" onclick="startGhostMode()">GHOST MODE</button>
+                <button class="menu-button" id="ai-race-button" onclick="startAIRace()">AI RACE</button>
+                <button class="menu-button" id="options-button" onclick="showOptions()">OPTIONS</button>
+                <button class="menu-button" id="how-to-play-button" onclick="showHowToPlay()">HOW TO PLAY</button>
+            </div>
+
+            <div id="nextplay-logo">NEXTPLAY</div>
+            <div id="developer-info">DEVELOPED BY GAMETORNADO.COM</div>
+        </div>
+
+        <!-- 기존 메뉴 (숨김 처리) -->
+        <div id="menu" class="hidden">
+            <h1>AI 레이싱 챌린지</h1>
+            <button id="start-game">레이스 시작</button>
+            <button id="toggle-ghost">고스트 모드 켜기</button>
+            <button id="toggle-ai">AI 상대와 경주</button>
+        </div>
+
+        <div id="game-over" class="hidden">
+            <h2>레이스 완료</h2>
+            <div id="final-time"></div>
+            <div id="ai-analysis"></div>
+            <button id="restart-game">다시 도전</button>
+            <button id="back-to-menu">메인 메뉴</button>
+        </div>
+    </div>
+
+    <!-- 게임 초기화 스크립트 -->
+    <script>
+        // 전역 오류 핸들러
+        window.onerror = function (message, source, lineno, colno, error) {
+            console.error("Global error:", message, source, lineno, colno, error);
+            showErrorMessage("게임 실행 중 오류가 발생했습니다: " + message);
+            return true;
+        };
+
+        // 로딩 진행 상태 업데이트
+        function updateLoadingProgress(percent, text) {
+            const loadingBar = document.getElementById('loading-bar');
+            const loadingText = document.getElementById('loading-text');
+
+            if (loadingBar) loadingBar.style.width = percent + '%';
+            if (loadingText) loadingText.textContent = text || '게임 로딩 중...';
+        }
+
+        // 오류 메시지 표시
+        function showErrorMessage(message) {
+            const errorDiv = document.getElementById('error-message');
+            if (errorDiv) {
+                errorDiv.style.display = 'block';
+                errorDiv.innerHTML = `
+                    <h2>오류 발생</h2>
+                    <p>${message}</p>
+                    <button onclick="location.reload()" style="padding: 10px 20px; margin-top: 15px; cursor: pointer; background-color: #ff3030; color: white; border: none; border-radius: 5px;">
+                        새로고침
+                    </button>
+                `;
+            }
+
+            // 로딩 화면 숨기기
+            const loadingScreen = document.getElementById('loading-screen');
+            if (loadingScreen) {
+                loadingScreen.style.display = 'none';
+            }
+        }
+
+        // 스크립트 로딩 함수
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error(`Failed to load ${src}`));
+                document.head.appendChild(script);
+            });
+        }
+
+        // Physics 클래스 직접 정의
+        class Physics {
+            constructor() {
+                // 물리 상수
+                this.gravity = 9.8;       // 중력 (m/s^2)
+                this.airDensity = 1.2;    // 공기 밀도 (kg/m^3)
+                this.friction = 0.7;      // 마찰 계수
+
+                // 시뮬레이션 설정
+                this.timeStep = 1 / 60;     // 시뮬레이션 시간 단계 (초)
+                console.log("Physics class initialized");
+            }
+
+            calculateAcceleration(force, mass) {
+                return force / mass;
+            }
+
+            calculateDrag(velocity, dragCoefficient, frontalArea) {
+                return 0.5 * this.airDensity * dragCoefficient * frontalArea * velocity * velocity * Math.sign(velocity);
+            }
+
+            calculateRollingResistance(mass, rollingCoefficient) {
+                return mass * this.gravity * rollingCoefficient;
+            }
+
+            calculateEngineForce(throttle, maxEnginePower) {
+                return throttle * maxEnginePower;
+            }
+
+            calculateBrakeForce(brake, maxBrakeForce) {
+                return brake * maxBrakeForce;
+            }
+
+            calculateRotation(steeringAngle, velocity, wheelbase, dt) {
+                const speedFactor = Math.min(Math.abs(velocity) / 10, 1);
+                const baseRotation = (velocity * Math.tan(steeringAngle) / wheelbase) * dt;
+                return baseRotation * (1 + (1 - speedFactor) * 0.5);
+            }
+
+            calculateDrift(lateralForce, tractionLimit, velocity) {
+                if (Math.abs(velocity) < 5) return 0;
+                const driftFactor = Math.max(0, Math.min(1, (Math.abs(lateralForce) - tractionLimit) / tractionLimit));
+                return driftFactor;
+            }
+
+            detectCollision(car, track) {
+                const collision = track.checkCollision(car.x, car.y, car.collisionRadius);
+                if (collision) {
+                    car.velocity *= 0.5;
+                    const pushDistance = 5;
+                    const pushAngle = car.rotation + Math.PI;
+                    car.x += Math.cos(pushAngle) * pushDistance;
+                    car.y += Math.sin(pushAngle) * pushDistance;
+                    return true;
+                }
+                return false;
+            }
+
+            updateVehicle(car, controls, dt) {
+                // 기본적인 차량 업데이트 로직
+                if (controls.up) car.speed += car.acceleration;
+                if (controls.down) car.speed -= car.acceleration;
+                car.speed = Math.max(-car.maxSpeed, Math.min(car.speed, car.maxSpeed));
+
+                if (car.speed !== 0) {
+                    const flip = car.speed > 0 ? 1 : -1;
+                    if (controls.left) car.angle -= car.rotationSpeed * flip;
+                    if (controls.right) car.angle += car.rotationSpeed * flip;
+                }
+
+                car.x += Math.cos(car.angle) * car.speed;
+                car.y += Math.sin(car.angle) * car.speed;
+
+                if (car.speed > 0) car.speed -= car.friction;
+                if (car.speed < 0) car.speed += car.friction;
+                if (Math.abs(car.speed) < car.friction) car.speed = 0;
+            }
+        }
+
+        // 게임 초기화
+        async function initializeGame() {
+            try {
+                updateLoadingProgress(10, '라이브러리 로드 중...');
+
+                // 필수 라이브러리 로드
+                await Promise.all([
+                    loadScript('https://cdn.jsdelivr.net/npm/pixi.js@7.2.4/dist/pixi.min.js'),
+                    loadScript('https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/gsap.min.js')
+                ]);
+
+                updateLoadingProgress(30, '게임 스크립트 로드 중...');
+
+                // 필수 유틸리티 함수 정의
+                window.formatTime = function (milliseconds) {
+                    if (milliseconds === Infinity) return '--:--.--';
+                    const totalSeconds = Math.floor(milliseconds / 1000);
+                    const minutes = Math.floor(totalSeconds / 60);
+                    const seconds = totalSeconds % 60;
+                    const ms = Math.floor((milliseconds % 1000) / 10);
+                    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+                };
+
+                window.loadFromStorage = function (key) {
+                    try {
+                        const data = localStorage.getItem(key);
+                        return data ? JSON.parse(data) : null;
+                    } catch (e) {
+                        console.error('Error loading from localStorage:', e);
+                        return null;
+                    }
+                };
+
+                window.saveToStorage = function (key, data) {
+                    try {
+                        localStorage.setItem(key, JSON.stringify(data));
+                        return true;
+                    } catch (e) {
+                        console.error('Error saving to localStorage:', e);
+                        return false;
+                    }
+                };
+
+                // randomRange 함수 전역으로 정의
+                window.randomRange = function (min, max) {
+                    return min + Math.random() * (max - min);
+                };
+
+                // Physics 클래스가 이미 정의되어 있는지 확인
+                console.log("Physics class exists:", typeof Physics === 'function');
+
+                // 게임 스크립트를 순차적으로 로드 (병렬 로드 대신)
+                updateLoadingProgress(40, '유틸리티 로드 중...');
+                await loadScript('./js/utils.js');
+
+                // physics.js는 이미 Physics 클래스가 정의되어 있으므로 로드하지 않음
+                updateLoadingProgress(45, '물리 엔진 초기화 중...');
+                console.log("Using inline Physics class");
+
+                updateLoadingProgress(50, '트랙 로드 중...');
+                await loadScript('./js/track.js');
+
+                updateLoadingProgress(55, '차량 로드 중...');
+                await loadScript('./js/car.js');
+
+                updateLoadingProgress(60, '이펙트 로드 중...');
+                await loadScript('./js/effects.js');
+
+                updateLoadingProgress(65, 'AI 로드 중...');
+                await loadScript('./js/ai.js');
+
+                updateLoadingProgress(70, '오디오 로드 중...');
+                await loadScript('./js/audio.js');
+
+                updateLoadingProgress(75, '고스트 로드 중...');
+                await loadScript('./js/ghost.js');
+
+                updateLoadingProgress(80, '키보드 컨트롤러 로드 중...');
+                await loadScript('./js/keyboard.js');
+
+                updateLoadingProgress(85, 'UI 로드 중...');
+                await loadScript('./js/ui.js');
+
+                updateLoadingProgress(90, '게임 초기화 중...');
+                await loadScript('./js/game.js');
+
+                // 게임 인스턴스 생성
+                if (typeof Game !== 'function') {
+                    throw new Error('Game 클래스를 찾을 수 없습니다.');
+                }
+
+                // 게임 초기화 전 필수 클래스 확인
+                const requiredClasses = ['Physics', 'Track', 'Car', 'Effects'];
+                for (const className of requiredClasses) {
+                    if (typeof window[className] !== 'function') {
+                        console.error(`${className} 클래스를 찾을 수 없습니다. 폴백 클래스를 정의합니다.`);
+
+                        // 필요한 클래스가 없는 경우 기본 클래스 정의
+                        if (className === 'Track' && typeof Track !== 'function') {
+                            window.Track = class Track {
+                                constructor(app) {
+                                    this.app = app;
+                                    this.container = new PIXI.Container();
+                                    this.trackPath = [];
+                                    console.log("Fallback Track class initialized");
+                                }
+
+                                drawTrack() {
+                                    console.log("Drawing track");
+                                    // 간단한 트랙 그리기
+                                    const graphics = new PIXI.Graphics();
+                                    graphics.lineStyle(20, 0x333333);
+                                    graphics.drawCircle(this.app.screen.width / 2, this.app.screen.height / 2, 200);
+                                    this.container.addChild(graphics);
+
+                                    // 트랙 경로 생성
+                                    for (let i = 0; i < 36; i++) {
+                                        const angle = (i / 36) * Math.PI * 2;
+                                        const x = this.app.screen.width / 2 + Math.cos(angle) * 200;
+                                        const y = this.app.screen.height / 2 + Math.sin(angle) * 200;
+                                        this.trackPath.push({ x, y, rotation: angle + Math.PI / 2 });
+                                    }
+                                }
+
+                                getStartPosition() {
+                                    return {
+                                        x: this.app.screen.width / 2 + 200,
+                                        y: this.app.screen.height / 2,
+                                        rotation: Math.PI / 2
+                                    };
+                                }
+
+                                checkCollision() {
+                                    return false; // 충돌 없음
+                                }
+
+                                checkCheckpoint() {
+                                    // 체크포인트 확인 로직
+                                }
+
+                                getNearestPathPoint(x, y) {
+                                    // 가장 가까운 경로 지점 찾기
+                                    return {
+                                        point: this.trackPath[0],
+                                        distance: 0
+                                    };
+                                }
+
+                                isOnTrack() {
+                                    return true; // 항상 트랙 위에 있음
+                                }
+                            };
+                        }
+
+                        if (className === 'Car' && typeof Car !== 'function') {
+                            window.Car = class Car {
+                                constructor(app, track, isAI = false) {
+                                    this.app = app;
+                                    this.track = track;
+                                    this.isAI = isAI;
+
+                                    const startPos = track.getStartPosition();
+                                    this.x = startPos.x;
+                                    this.y = startPos.y;
+                                    this.angle = startPos.rotation;
+
+                                    this.speed = 0;
+                                    this.maxSpeed = 10;
+                                    this.acceleration = 0.3;
+                                    this.friction = 0.05;
+                                    this.rotationSpeed = 0.05;
+                                    this.velocity = 0;
+                                    this.drift = 0;
+
+                                    this.collisionRadius = 20;
+                                    this.container = new PIXI.Container();
+                                    this.app.stage.addChild(this.container);
+                                    this.createSprite();
+
+                                    console.log("Fallback Car class initialized");
+                                }
+
+                                createSprite() {
+                                    this.sprite = new PIXI.Graphics();
+                                    this.sprite.beginFill(0xFF0000);
+                                    this.sprite.drawRect(-15, -30, 30, 60);
+                                    this.sprite.endFill();
+                                    this.container.addChild(this.sprite);
+                                    this.updateSpritePosition();
+                                }
+
+                                updateSpritePosition() {
+                                    if (this.sprite) {
+                                        this.sprite.x = this.x;
+                                        this.sprite.y = this.y;
+                                        this.sprite.rotation = this.angle;
+                                    }
+                                }
+
+                                update(deltaTime, controls = {}) {
+                                    // 가속 / 감속
+                                    if (controls.up) {
+                                        this.speed += this.acceleration;
+                                        this.velocity += this.acceleration * 20;
+                                    }
+                                    if (controls.down) {
+                                        this.speed -= this.acceleration;
+                                        this.velocity -= this.acceleration * 20;
+                                    }
+
+                                    // 속도 제한
+                                    this.speed = Math.max(-this.maxSpeed, Math.min(this.speed, this.maxSpeed));
+                                    this.velocity = Math.max(-100, Math.min(this.velocity, 100));
+
+                                    // 회전
+                                    if (this.speed !== 0) {
+                                        const flip = this.speed > 0 ? 1 : -1;
+                                        if (controls.left) {
+                                            this.angle -= this.rotationSpeed * flip;
+                                        } else if (controls.right) {
+                                            this.angle += this.rotationSpeed * flip;
+                                        }
+                                    }
+
+                                    // 위치 업데이트
+                                    this.x += Math.cos(this.angle) * this.speed;
+                                    this.y += Math.sin(this.angle) * this.speed;
+
+                                    // 마찰
+                                    if (this.speed > 0) this.speed -= this.friction;
+                                    if (this.speed < 0) this.speed += this.friction;
+                                    if (Math.abs(this.speed) < this.friction) this.speed = 0;
+
+                                    // 스프라이트 위치 업데이트
+                                    this.updateSpritePosition();
+                                }
+
+                                startRace() {
+                                    console.log("Race started");
+                                }
+
+                                setPosition(x, y, angle) {
+                                    this.x = x;
+                                    this.y = y;
+                                    this.angle = angle;
+                                    this.updateSpritePosition();
+                                }
+
+                                getSpeed() {
+                                    return Math.abs(Math.round(this.velocity));
+                                }
+
+                                destroy() {
+                                    if (this.container && this.container.parent) {
+                                        this.container.parent.removeChild(this.container);
+                                    }
+                                }
+                            };
+                        }
+
+                        if (className === 'Effects' && typeof Effects !== 'function') {
+                            window.Effects = class Effects {
+                                constructor(app) {
+                                    this.app = app;
+                                    this.container = new PIXI.Container();
+                                    this.app.stage.addChild(this.container);
+                                    this.particles = [];
+                                    this.postProcessing = new PIXI.Container();
+                                    this.app.stage.addChild(this.postProcessing);
+                                    console.log("Fallback Effects class initialized");
+                                }
+
+                                createVignette() {
+                                    // 비네트 효과 생성 (비활성화)
+                                }
+
+                                update() {
+                                    // 파티클 업데이트
+                                }
+
+                                createDustTrail() {
+                                    // 먼지 흔적 생성
+                                }
+
+                                createSkidMarks() {
+                                    // 스키드 마크 생성
+                                }
+                            };
+                        }
+                    }
+                }
+
+                try {
+                    // 간단한 게임 스크립트 로드
+                    console.log("Loading simple game script...");
+                    const simpleGameScript = document.createElement('script');
+                    simpleGameScript.src = './simple_game.js';
+                    document.head.appendChild(simpleGameScript);
+
+                    // 게임 객체가 생성될 때까지 기다림
+                    const checkGameObject = setInterval(() => {
+                        if (window.game && typeof window.game.startRace === 'function') {
+                            console.log("Simple game object loaded successfully");
+                            clearInterval(checkGameObject);
+                        }
+                    }, 100);
+
+                    // 5초 후에도 게임 객체가 생성되지 않으면 오류 표시
+                    setTimeout(() => {
+                        if (!window.game || typeof window.game.startRace !== 'function') {
+                            console.error("Failed to load game object");
+                            showErrorMessage("게임을 로드하지 못했습니다. 페이지를 새로고침해주세요.");
+                        }
+                    }, 5000);
+                } catch (error) {
+                    console.error("Error loading game script:", error);
+                    showErrorMessage("게임 스크립트를 로드하지 못했습니다: " + error.message);
+                }
+
+                // 로딩 화면 숨기기
+                updateLoadingProgress(100, '완료!');
+                setTimeout(() => {
+                    const loadingScreen = document.getElementById('loading-screen');
+                    if (loadingScreen) {
+                        loadingScreen.style.opacity = '0';
+                        loadingScreen.style.transition = 'opacity 0.5s';
+                        setTimeout(() => {
+                            if (loadingScreen.parentNode) {
+                                loadingScreen.style.display = 'none';
+                            }
+                        }, 500);
+                    }
+
+                    // 디버깅용 코드: 게임 시작 버튼에 이벤트 리스너 추가
+                    console.log("Adding event listeners to buttons...");
+                    const playButton = document.getElementById('play-button');
+                    if (playButton) {
+                        console.log("Play button found, adding event listener");
+                        playButton.addEventListener('click', startGame);
+                    }
+                }, 500);
+
+            } catch (error) {
+                console.error('게임 초기화 오류:', error);
+                showErrorMessage('게임을 초기화하는 중 오류가 발생했습니다: ' + error.message);
+            }
+        }
+
+        // 게임 시작 함수들 정의
+        function startGame() {
+            console.log("startGame function called");
+
+            // 디버깅 정보 출력
+            console.log("Game object exists:", window.game !== undefined);
+            console.log("Game object:", window.game);
+
+            if (window.game) {
+                console.log("startRace function exists:", typeof window.game.startRace === 'function');
+                console.log("UI object exists:", window.game.ui !== undefined);
+            }
+
+            try {
+                if (window.game && typeof window.game.startRace === 'function') {
+                    if (window.game.ui) {
+                        window.game.ui.ghostEnabled = false;
+                        window.game.ui.aiEnabled = false;
+                    }
+                    console.log("Calling startRace function...");
+                    window.game.startRace();
+                    console.log("startRace function called successfully");
+                } else {
+                    console.error("Game object or startRace function not available");
+                    showErrorMessage("게임을 시작할 수 없습니다. 페이지를 새로고침해주세요.");
+                }
+            } catch (error) {
+                console.error("Error in startGame function:", error);
+                showErrorMessage("게임 시작 중 오류가 발생했습니다: " + error.message);
+            }
+        }
+
+        function startGhostMode() {
+            console.log("startGhostMode function called");
+            if (window.game && typeof window.game.startRace === 'function') {
+                if (window.game.ui) {
+                    window.game.ui.ghostEnabled = true;
+                    window.game.ui.aiEnabled = false;
+                }
+                window.game.startRace();
+            } else {
+                showErrorMessage("게임을 시작할 수 없습니다. 페이지를 새로고침해주세요.");
+            }
+        }
+
+        function startAIRace() {
+            console.log("startAIRace function called");
+            if (window.game && typeof window.game.startRace === 'function') {
+                if (window.game.ui) {
+                    window.game.ui.ghostEnabled = false;
+                    window.game.ui.aiEnabled = true;
+                }
+                window.game.startRace();
+            } else {
+                showErrorMessage("게임을 시작할 수 없습니다. 페이지를 새로고침해주세요.");
+            }
+        }
+
+        function showOptions() {
+            console.log("showOptions function called");
+            alert("옵션 기능은 개발 중입니다.");
+        }
+
+        function showHowToPlay() {
+            console.log("showHowToPlay function called");
+            alert("방향키 또는 WASD로 차량을 조작하세요. 스페이스바로 가속할 수 있습니다.");
+        }
+
+        // 페이지 로드 완료 시 게임 초기화
+        window.addEventListener('load', initializeGame);
+    </script>
+</body>
+
+</html>

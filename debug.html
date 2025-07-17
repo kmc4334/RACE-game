@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>게임 디버깅</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            background-color: #ff3030;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #cc0000;
+        }
+        #log {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #333;
+            color: #fff;
+            font-family: monospace;
+            height: 300px;
+            overflow-y: auto;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>레이싱 게임 디버깅</h1>
+    
+    <div>
+        <button id="check-libraries">라이브러리 확인</button>
+        <button id="check-game">게임 객체 확인</button>
+        <button id="start-game">게임 시작</button>
+        <button id="fix-game">게임 수정</button>
+    </div>
+    
+    <div id="log"></div>
+    
+    <script>
+        // 로그 함수
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        // 라이브러리 확인
+        document.getElementById('check-libraries').addEventListener('click', function() {
+            log("라이브러리 확인 중...");
+            
+            // PIXI.js 확인
+            if (typeof PIXI !== 'undefined') {
+                log(`✅ PIXI.js 로드됨 (버전: ${PIXI.VERSION})`);
+            } else {
+                log("❌ PIXI.js 로드되지 않음");
+                
+                // PIXI.js 로드 시도
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/pixi.js@7.2.4/dist/pixi.min.js';
+                script.onload = () => log("✅ PIXI.js 로드 완료");
+                script.onerror = () => log("❌ PIXI.js 로드 실패");
+                document.head.appendChild(script);
+            }
+            
+            // GSAP 확인
+            if (typeof gsap !== 'undefined') {
+                log("✅ GSAP 로드됨");
+            } else {
+                log("❌ GSAP 로드되지 않음");
+                
+                // GSAP 로드 시도
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/gsap.min.js';
+                script.onload = () => log("✅ GSAP 로드 완료");
+                script.onerror = () => log("❌ GSAP 로드 실패");
+                document.head.appendChild(script);
+            }
+            
+            // 필수 클래스 확인
+            const requiredClasses = ['Physics', 'Track', 'Car', 'Effects', 'Game', 'GameUI'];
+            for (const className of requiredClasses) {
+                if (typeof window[className] === 'function') {
+                    log(`✅ ${className} 클래스 로드됨`);
+                } else {
+                    log(`❌ ${className} 클래스 로드되지 않음`);
+                }
+            }
+        });
+        
+        // 게임 객체 확인
+        document.getElementById('check-game').addEventListener('click', function() {
+            log("게임 객체 확인 중...");
+            
+            if (typeof window.game !== 'undefined') {
+                log("✅ 게임 객체 존재함");
+                
+                // 게임 객체 속성 확인
+                if (typeof window.game.startRace === 'function') {
+                    log("✅ startRace 함수 존재함");
+                } else {
+                    log("❌ startRace 함수 없음");
+                }
+                
+                if (window.game.ui) {
+                    log("✅ UI 객체 존재함");
+                } else {
+                    log("❌ UI 객체 없음");
+                }
+                
+                if (window.game.track) {
+                    log("✅ 트랙 객체 존재함");
+                } else {
+                    log("❌ 트랙 객체 없음");
+                }
+                
+                if (window.game.app) {
+                    log("✅ PIXI 애플리케이션 존재함");
+                } else {
+                    log("❌ PIXI 애플리케이션 없음");
+                }
+            } else {
+                log("❌ 게임 객체 없음");
+            }
+        });
+        
+        // 게임 시작
+        document.getElementById('start-game').addEventListener('click', function() {
+            log("게임 시작 시도 중...");
+            
+            if (typeof window.game !== 'undefined' && typeof window.game.startRace === 'function') {
+                try {
+                    window.game.startRace();
+                    log("✅ 게임 시작 함수 호출됨");
+                } catch (error) {
+                    log(`❌ 게임 시작 중 오류 발생: ${error.message}`);
+                    console.error(error);
+                }
+            } else {
+                log("❌ 게임 객체 또는 startRace 함수가 없음");
+            }
+        });
+        
+        // 게임 수정
+        document.getElementById('fix-game').addEventListener('click', function() {
+            log("게임 수정 시도 중...");
+            
+            // 필수 유틸리티 함수 정의
+            window.formatTime = function(milliseconds) {
+                if (milliseconds === Infinity) return '--:--.--';
+                const totalSeconds = Math.floor(milliseconds / 1000);
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                const ms = Math.floor((milliseconds % 1000) / 10);
+                return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+            };
+            
+            window.loadFromStorage = function(key) {
+                try {
+                    const data = localStorage.getItem(key);
+                    return data ? JSON.parse(data) : null;
+                } catch (e) {
+                    console.error('Error loading from localStorage:', e);
+                    return null;
+                }
+            };
+            
+            window.saveToStorage = function(key, data) {
+                try {
+                    localStorage.setItem(key, JSON.stringify(data));
+                    return true;
+                } catch (e) {
+                    console.error('Error saving to localStorage:', e);
+                    return false;
+                }
+            };
+            
+            window.randomRange = function(min, max) {
+                return min + Math.random() * (max - min);
+            };
+            
+            log("✅ 유틸리티 함수 정의됨");
+            
+            // 게임 버튼 이벤트 리스너 직접 추가
+            try {
+                const playButton = document.getElementById('play-button');
+                if (playButton) {
+                    playButton.onclick = function() {
+                        log("Play 버튼 클릭됨");
+                        if (window.game && typeof window.game.startRace === 'function') {
+                            window.game.startRace();
+                        }
+                    };
+                    log("✅ Play 버튼 이벤트 리스너 추가됨");
+                } else {
+                    log("❌ Play 버튼을 찾을 수 없음");
+                }
+            } catch (error) {
+                log(`❌ 버튼 이벤트 리스너 추가 중 오류: ${error.message}`);
+            }
+            
+            log("게임 수정 완료");
+        });
+        
+        // 페이지 로드 시 초기화
+        window.addEventListener('load', function() {
+            log("디버깅 페이지 로드됨");
+            
+            // 메인 페이지에서 스크립트 로드
+            const scripts = [
+                './js/utils.js',
+                './js/physics.js',
+                './js/track.js',
+                './js/car.js',
+                './js/effects.js',
+                './js/ai.js',
+                './js/audio.js',
+                './js/ghost.js',
+                './js/keyboard.js',
+                './js/ui.js',
+                './js/game.js'
+            ];
+            
+            let loadedCount = 0;
+            scripts.forEach(src => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = () => {
+                    loadedCount++;
+                    log(`✅ ${src} 로드됨 (${loadedCount}/${scripts.length})`);
+                    
+                    if (loadedCount === scripts.length) {
+                        log("모든 스크립트 로드 완료");
+                        
+                        // 게임 초기화 시도
+                        try {
+                            if (typeof Game === 'function') {
+                                window.game = new Game();
+                                log("✅ 게임 객체 생성됨");
+                            } else {
+                                log("❌ Game 클래스를 찾을 수 없음");
+                            }
+                        } catch (error) {
+                            log(`❌ 게임 초기화 중 오류: ${error.message}`);
+                        }
+                    }
+                };
+                script.onerror = () => log(`❌ ${src} 로드 실패`);
+                document.head.appendChild(script);
+            });
+        });
+    </script>
+</body>
+</html>
