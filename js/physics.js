@@ -1,9 +1,19 @@
 /**
  * 레이싱 게임 물리 엔진
- * 차량의 움직임, 충돌 감지, 물리적 상호작용을 처리합니다.
+ * Matter.js를 활용한 차량의 움직임, 충돌 감지, 물리적 상호작용을 처리합니다.
  */
 class Physics {
     constructor() {
+        // Matter.js 모듈 참조
+        this.Engine = Matter.Engine;
+        this.Render = Matter.Render;
+        this.World = Matter.World;
+        this.Bodies = Matter.Bodies;
+        this.Body = Matter.Body;
+        this.Composite = Matter.Composite;
+        this.Constraint = Matter.Constraint;
+        this.Vector = Matter.Vector;
+        
         // 물리 상수
         this.gravity = 9.8;       // 중력 (m/s^2)
         this.airDensity = 1.2;    // 공기 밀도 (kg/m^3)
@@ -11,6 +21,29 @@ class Physics {
         
         // 시뮬레이션 설정
         this.timeStep = 1/60;     // 시뮬레이션 시간 단계 (초)
+        
+        // Matter.js 엔진 초기화
+        this.engine = this.Engine.create({
+            enableSleeping: false,
+            constraintIterations: 4,
+            positionIterations: 6,
+            velocityIterations: 4
+        });
+        
+        // 중력 설정 (2D 탑다운 게임이므로 중력 없음)
+        this.engine.gravity.y = 0;
+        this.engine.gravity.x = 0;
+        
+        // 물리 객체 저장소
+        this.bodies = {};
+        this.constraints = {};
+        this.collisionGroups = {
+            car: 0x0001,
+            track: 0x0002,
+            checkpoint: 0x0004
+        };
+        
+        console.log("Matter.js Physics engine initialized");
     }
     
     /**

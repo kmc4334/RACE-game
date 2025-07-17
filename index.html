@@ -302,7 +302,11 @@
                 // 필수 라이브러리 로드
                 await Promise.all([
                     loadScript('https://cdn.jsdelivr.net/npm/pixi.js@7.2.4/dist/pixi.min.js'),
-                    loadScript('https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/gsap.min.js')
+                    loadScript('https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/gsap.min.js'),
+                    loadScript('https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js'),
+                    loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js'),
+                    loadScript('https://cdn.jsdelivr.net/npm/howler@2.2.3/dist/howler.min.js'),
+                    loadScript('https://cdn.jsdelivr.net/npm/tweakpane@3.1.10/dist/tweakpane.min.js')
                 ]);
 
                 updateLoadingProgress(30, '게임 스크립트 로드 중...');
